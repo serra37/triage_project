@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+
+#API Anahtarı
+.env
+
+# Veritabanı
+chroma_db/
+
+

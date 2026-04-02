@@ -1,0 +1,9 @@
+langchain>=0.2.14
+langchain-community>=0.2.10
+langchain-openai>=0.1.22
+langgraph>=0.2.5
+chromadb>=0.5.5
+datasets>=2.20.0
+pydantic>=2.8.2
+python-dotenv>=1.0.1
+huggingface_hub>=0.24.5
