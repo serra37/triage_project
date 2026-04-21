@@ -2,7 +2,7 @@ import os
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
-from database.chroma_client import get_retriever
+from database.chroma_client import search_and_rerank
 from agents.state import TriageState
 import json
 
@@ -14,15 +14,14 @@ def get_llm():
 def supervisor_node(state: TriageState):
     """Sistemin akışını yönetir ve sıradaki düğümü belirler."""
     if not state.get("is_clarified", False):
-        return {"next_node": "intent"}  #hastanın şikayeti netleşmediyse tekrar intent düğümünü yönlendirir, soru sormaya devam eder
-    
-    if not state.get("medical_context"):    
-        return {"next_node": "rag"}     #şikayet netleşti ve şikayeti rag düğümünü yönlendirir
-    
+        if state.get("clarification_question"):
+            return {"next_node": "end"}
+        return {"next_node": "intent"}
+    if not state.get("medical_context"):
+        return {"next_node": "rag"}
     if not state.get("final_decision"):
-        return {"next_node": "clinical"}    #kullanıcıya bir cevap metni yazılmamışsa kararı verir
-        
-    return {"next_node": "end"}     #final_decision varsa akışı sonlandır
+        return {"next_node": "clinical"}
+    return {"next_node": "end"}
 
 def intent_node(state: TriageState):
     """Kullanıcının şikayetini analiz edip eksiği var mı diye bakar. Varsa soru üretir."""
@@ -36,7 +35,7 @@ def intent_node(state: TriageState):
     Sen insanların hastaneye veya acil servise gitmeden ÖNCE danıştıkları uzman bir yapay zeka sağlık chatbotusun.
     Görevin hastanın şikayetini dinleyip, durumları hakkında doğru bilgilendirme ve yönlendirme yapabilmek için eksik kalan bilgileri (ne zaman başladı, şiddeti nedir, kronik hastalık var mı vb.) sormaktır.
     Bilgi yeterliliğine ulaşana kadar hastaya teşhis söyleme, sadece empati kurarak sorunu derinleştiren tek bir soru sor.
-    Eğer hastanın verdiği şikayetler durumu değerlendirmek için yeterliyse JSON formatında 'is_clarified': true döndür.
+    Eğer hastanın verdiği şikayetler durumu değerlendirmek için yeterliyse JSON formatında 'is_clarified': true döndür ve hastanın belirttiği tüm semptomları İngilizce tıp terimleri veya anahtar kelimeler şeklinde bir liste olarak 'extracted_symptoms' anahtarında döndür (Örn: ["chest pain", "shortness of breath", "nausea"]).
     Eğer ek bir soru sorman gerekiyorsa JSON formatında 'is_clarified': false ve 'question': "Soracağın netleştirici soru" şeklinde döndür.
     Sadece ve sadece JSON formatında yanıt ver, başka bir metin içerme.
     """)
@@ -54,33 +53,37 @@ def intent_node(state: TriageState):
         
         is_clarified = result.get("is_clarified", False)
         question = result.get("question", "")
+        extracted_symptoms = result.get("extracted_symptoms", [])
         
         return {
             "is_clarified": is_clarified,
-            "clarification_question": question
+            "clarification_question": question,
+            "extracted_symptoms": extracted_symptoms
         }
     except Exception as e:
         print(f"JSON Parse Hatası Intent Düğümünde: {e}")
         # Hata anında en azından bir standart soru sor
         return {
             "is_clarified": False,
-            "clarification_question": "Şikayetinizle ilgili başka belirtebileceğiniz bir detay var mı?"
+            "clarification_question": "Şikayetinizle ilgili başka belirtebileceğiniz bir detay var mı?",
+            "extracted_symptoms": []
         }
 
 def rag_node(state: TriageState):
     """Şikayet netleştiğinde RAG üzerinden tıbbi vaka/literatür tarar."""
-    complaint = state.get("patient_complaint", "")  #hastanın şikayetini alıyor
-    history = state.get("chat_history", [])     # konuşma geçmişini alıyor
+    extracted_symptoms = state.get("extracted_symptoms", [])
     
-    history_str = "\n".join([f"{msg.type}: {msg.content}" for msg in history if msg.type in ['human', 'ai']])
-    query = f"{complaint}\n{history_str}"
+    if extracted_symptoms:
+        query = " ".join(extracted_symptoms)
+    else:
+        # Eğer extracted_symptoms boş ise sadece string complaint değerini kullan (fallback)
+        query = state.get("patient_complaint", "")
+        
+    docs = search_and_rerank(query, k=5, final_k=3)
     
-    retriever = get_retriever(k=3)
-    docs = retriever.invoke(query)
+    context = "\n---\n".join([doc.page_content for doc in docs])  
     
-    context = "\n---\n".join([doc.page_content for doc in docs])
-    
-    return {"medical_context": context}
+    return {"medical_context": context}     #Bulunan o 3 farklı döküman parçasını aralarına çizgiler çekerek birleştiriyor ve buna medical_context adını veriyor. Bu metni bir sonraki düğüm olan clinical_node'a (doktor düğümüne) paslıyor.
 
 def clinical_node(state: TriageState):
     """Tüm bilgileri sentezleyip hastayı doğru polikliniğe yönlendirir."""
@@ -110,6 +113,7 @@ def clinical_node(state: TriageState):
     """
     
     human_msg = HumanMessage(content=user_prompt)
-    response = get_llm().invoke([sys_msg, human_msg])
+    response = get_llm().invoke([sys_msg, human_msg])   #Burada elimizdeki tüm o sentezlenmiş bilgileri (şikayet, mülakat, RAG verisi) LLM'e (GPT'ye) paketleyip gönderiyoruz. LLM bunu okuyor ve "Sizin durumunuz Dahiliye randevusu gerektiriyor..." gibi uzun bir metin oluşturuyor.
     
     return {"final_decision": response.content}
+

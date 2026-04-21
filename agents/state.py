@@ -9,7 +9,7 @@ class TriageState(TypedDict):
     # hastanın ana şikayeti ve konuşmalar
     patient_complaint: str
     
-    # kullanıcının ilk yazdığı ana şikayeti odağı kaybetmemek için burada sabit tutuyoruz
+    # kullanıcının ilk yazdığı ana şikayeti odağı kaybetmemek için burada sabit tutuyoruz burası false olduğu sürece niyet ajanı hastaya soru sormaya devam eder ve true döndüğünde ise rag ajanına yönlendiriyo akışı
     is_clarified: bool
     
     # istenebilecek ek soruların geçici olarak tutulduğu yer
@@ -21,5 +21,11 @@ class TriageState(TypedDict):
     # son karar 
     final_decision: str
     
+    # anlaşılan semptomlar (İngilizce keyword listesi)
+    extracted_symptoms: list[str]
+    
     # bir sonraki çalışacak düğümü yönlendirmek için
     next_node: str
+
+
+#düğümler arasındaki akışın (trafiğin) nereye gideceğine buradaki verilere bakarak karar veriyoruz.

@@ -17,6 +17,7 @@ def main():
         "clarification_question": "",
         "medical_context": "",
         "final_decision": "",
+        "extracted_symptoms": [],
         "next_node": ""
     }
     
@@ -58,7 +59,16 @@ def main():
         elif result.get("final_decision"):
             print("\n=== SİSTEMİN DEĞERLENDİRMESİ VE YÖNLENDİRMESİ ===")
             print(result["final_decision"])
-            break
+            
+            # State'i sıfırla ve yeni konuşmaya hazırla
+            state["medical_context"] = ""
+            state["final_decision"] = ""
+            state["is_clarified"] = False
+            state["patient_complaint"] = ""
+            state["extracted_symptoms"] = []
+            state["chat_history"] = []
+            
+            print("\nYeni şikayetinizi yazabilirsiniz.")
 
 if __name__ == "__main__":
     main()
