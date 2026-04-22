@@ -14,7 +14,7 @@ from database.chroma_client import get_chroma_client
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
-def chunk_with_llm(text, source):
+def chunk_with_llm(text, source, base_id):
     """LLM kullanarak metni belirtiler, nedenler ve tedavi olarak JSON'a ayırıp Document listesi döner."""
     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
     sys_msg = SystemMessage(content="""
@@ -45,7 +45,8 @@ def chunk_with_llm(text, source):
                     metadata={
                         "source": source,
                         "aspect": aspect,
-                        "disease": disease if disease else "unknown"
+                        "disease": disease if disease else "unknown",
+                        "doc_id": f"{base_id}_{aspect}"
                     }
                 ))
     except Exception as e:
@@ -53,7 +54,7 @@ def chunk_with_llm(text, source):
         # Hata durumunda fallback olarak tek chunk ekle
         docs.append(Document(
             page_content=text,
-            metadata={"source": source, "aspect": "general", "disease": "unknown"}
+            metadata={"source": source, "aspect": "general", "disease": "unknown", "doc_id": f"{base_id}_general"}
         ))
     
     return docs
@@ -62,10 +63,11 @@ def process_medquad_row(row):
     """MedQuAD verisini Soru-Cevap olarak hazırlar."""
     question = row.get('question', '').strip()
     answer = row.get('answer', '').strip()
+    question_id = row.get("question_id", row.get("id", "unknown"))
     text = f"Soru: {question}\nCevap: {answer}"
-    return chunk_with_llm(text, "MedQuAD")
+    return chunk_with_llm(text, "MedQuAD", str(question_id))
 
-def process_healthcaremagic_row(row):
+def process_healthcaremagic_row(row, idx):
     """HealthCareMagic verisini temizler ve asıl şikayete odaklanır."""
     question = row.get('input', '').strip()
     answer = row.get('output', '').strip()
@@ -78,7 +80,7 @@ def process_healthcaremagic_row(row):
         question = question.replace(dirty_prefix, "").strip()
 
     text = f"Şikayet: {question}\nDoktor Yanıtı: {answer}"
-    return chunk_with_llm(text, "HealthCareMagic")
+    return chunk_with_llm(text, "HealthCareMagic", f"hc_{idx}")
 
 def ingest_data(sample_size=500):
     """Sadece verilen sample_size kadar veri alarak LLM tabanlı vektör veritabanı oluşturur."""
@@ -101,7 +103,7 @@ def ingest_data(sample_size=500):
         print("[+] HealthCareMagic verileri indiriliyor ve LLM ile chunklanıyor...")
         hc_magic = load_dataset("wangrongsheng/HealthCareMagic-100k-en", split=f"train[:{sample_size}]")
         for i, row in enumerate(hc_magic):
-            docs.extend(process_healthcaremagic_row(row))
+            docs.extend(process_healthcaremagic_row(row, i))
             if (i+1) % 10 == 0:
                 print(f"   HealthCareMagic {i+1}/{sample_size} işlendi...")
     except Exception as e:
