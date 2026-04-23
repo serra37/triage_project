@@ -54,7 +54,7 @@ def get_bm25_client():
 def rrf_score(rank, k=60):
     return 1 / (k + rank)
 
-def hybrid_search_with_rrf(query: str, k: int = 5):
+def hybrid_search_with_rrf(query: str, k: int = 10):
     """Combines Dense (Chroma) and Sparse (BM25) search results using RRF."""
     db = get_chroma_client()
     bm25, bm25_docs = get_bm25_client()
@@ -110,7 +110,7 @@ def rerank_documents(query: str, docs: list, top_k: int = 3):
         model="rerank-english-v3.0"
     )
     return [docs[r.index] for r in results.results]
-def search_and_rerank(query: str, k: int = 5, final_k: int = 3):
+def search_and_rerank(query: str, k: int = 10, final_k: int = 3):
     """Single wrapper to perform Hybrid RRF Search followed by Reranking."""
     top_hybrid_docs = hybrid_search_with_rrf(query, k=k)
     final_docs = rerank_documents(query, top_hybrid_docs, top_k=final_k)
