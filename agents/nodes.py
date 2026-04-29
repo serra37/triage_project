@@ -36,6 +36,7 @@ def intent_node(state: TriageState):
     Görevin hastanın şikayetini dinleyip, durumları hakkında doğru bilgilendirme ve yönlendirme yapabilmek için eksik kalan bilgileri (ne zaman başladı, şiddeti nedir, kronik hastalık var mı vb.) sormaktır.
     Bilgi yeterliliğine ulaşana kadar hastaya teşhis söyleme, sadece empati kurarak sorunu derinleştiren tek bir soru sor.
     Eğer hastanın verdiği şikayetler durumu değerlendirmek için yeterliyse JSON formatında 'is_clarified': true döndür ve hastanın belirttiği tüm semptomları İngilizce tıp terimleri veya anahtar kelimeler şeklinde bir liste olarak 'extracted_symptoms' anahtarında döndür (Örn: ["chest pain", "shortness of breath", "nausea"]).
+    
     Eğer ek bir soru sorman gerekiyorsa JSON formatında 'is_clarified': false ve 'question': "Soracağın netleştirici soru" şeklinde döndür.
     Sadece ve sadece JSON formatında yanıt ver, başka bir metin içerme.
     """)
@@ -72,18 +73,19 @@ def intent_node(state: TriageState):
 def rag_node(state: TriageState):
     """Şikayet netleştiğinde RAG üzerinden tıbbi vaka/literatür tarar."""
     extracted_symptoms = state.get("extracted_symptoms", [])
-    
     if extracted_symptoms:
         query = " ".join(extracted_symptoms)
     else:
-        # Eğer extracted_symptoms boş ise sadece string complaint değerini kullan (fallback)
         query = state.get("patient_complaint", "")
-        
-    docs = search_and_rerank(query, k=5, final_k=3)
+
+    print("EXTRACTED:", extracted_symptoms)
+    print("FINAL QUERY:", query)
+    
+    docs = search_and_rerank(query, k=20, final_k=5)
     
     context = "\n---\n".join([doc.page_content for doc in docs])  
     
-    return {"medical_context": context}     #Bulunan o 3 farklı döküman parçasını aralarına çizgiler çekerek birleştiriyor ve buna medical_context adını veriyor. Bu metni bir sonraki düğüm olan clinical_node'a (doktor düğümüne) paslıyor.
+    return {"medical_context": context}     
 
 def clinical_node(state: TriageState):
     """Tüm bilgileri sentezleyip hastayı doğru polikliniğe yönlendirir."""

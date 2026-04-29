@@ -82,7 +82,7 @@ def process_healthcaremagic_row(row, idx):
     text = f"Şikayet: {question}\nDoktor Yanıtı: {answer}"
     return chunk_with_llm(text, "HealthCareMagic", f"hc_{idx}")
 
-def ingest_data(sample_size=500):
+def ingest_data(sample_size=1000):
     """Sadece verilen sample_size kadar veri alarak LLM tabanlı vektör veritabanı oluşturur."""
     print(f"[TEST MODU] AKTİF: Her verisetinden sadece ilk {sample_size} kayıt alınıyor...")
     docs = []
@@ -135,4 +135,4 @@ def ingest_data(sample_size=500):
     print(f"\n[BITTI] İşlem başarıyla tamamlandı! Kütüphanen artık taze {len(docs)} chunk ile dolu.")
 
 if __name__ == "__main__":
-    ingest_data(sample_size=500)
+    ingest_data(sample_size=1000)

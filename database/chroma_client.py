@@ -110,7 +110,7 @@ def rerank_documents(query: str, docs: list, top_k: int = 3):
         model="rerank-english-v3.0"
     )
     return [docs[r.index] for r in results.results]
-def search_and_rerank(query: str, k: int = 10, final_k: int = 3):
+def search_and_rerank(query: str, k: int = 20, final_k: int = 5):
     """Single wrapper to perform Hybrid RRF Search followed by Reranking."""
     top_hybrid_docs = hybrid_search_with_rrf(query, k=k)
     final_docs = rerank_documents(query, top_hybrid_docs, top_k=final_k)
