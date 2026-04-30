@@ -1,6 +1,7 @@
 """
-Manuel Test Seti — Gerçek Hasta Dili
-Sorgular hasta gibi yazılmış, expected_diseases DB'deki hastalık isimleriyle eşleşiyor.
+Manual Retrieval Evaluation — Baseline
+Query expansion yok.
+Metrikler: Recall@5 / Hit Rate, Precision@5, MRR
 """
 
 import os
@@ -12,6 +13,9 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv()
 
 from database.chroma_client import search_and_rerank
+
+K = 20
+FINAL_K = 5
 
 test_set = [
     {"query": "chest pain radiating to left arm, sweating, shortness of breath",
@@ -106,58 +110,81 @@ test_set = [
 ]
 
 
+ALIAS_MAP = {
+    "heart attack": ["myocardial infarction", "cardiac", "angina", "heart disease"],
+    "asthma": ["bronchial", "wheezing", "breathlessness", "spasm"],
+    "acid reflux": ["gerd", "gastroesophageal reflux", "gastritis", "hiatus"],
+    "arthritis": ["rheumatoid", "joint inflammation", "costochondritis", "lupus"],
+    "allergy": ["urticaria", "allergen", "allergic"],
+    "viral fever": ["viral infection", "viral illness"],
+    "migraine": ["cluster headache", "ischemia of brain", "headache"],
+    "appendicitis": ["abdomen pain", "acidity", "pancreatitis"],
+    "diabetes": ["hypoglycemia", "hipoglisemi", "glucose", "insulin"],
+    "bppv": ["vertigo", "dizziness", "cervical spondylosis"],
+    "urinary tract infection": ["idrar yolu", "urinary infection", "cystitis"],
+    "sciatica": ["disc herniation", "herniated", "nerve compression"],
+}
+
+def is_relevant(doc, expected_diseases):
+    doc_disease = doc.metadata.get("disease", "").lower()
+    doc_content = doc.page_content.lower()
+
+    expanded = list(expected_diseases)
+    for exp in expected_diseases:
+        if exp in ALIAS_MAP:
+            expanded.extend(ALIAS_MAP[exp])
+
+    return any(
+        term in doc_disease or term in doc_content
+        for term in expanded
+    )
+
+
 def evaluate(test_set):
     hits = 0
     precision_scores = []
+    recall_scores = []
     mrr_scores = []
 
-    for i, item in enumerate(test_set):
+    for i, item in enumerate(test_set, start=1):
         query = item["query"]
         expected = [e.lower() for e in item["expected_diseases"]]
 
-        retrieved_docs = search_and_rerank(query, k=20, final_k=5)
-
+        retrieved_docs = search_and_rerank(query, k=K, final_k=FINAL_K)
         time.sleep(7)
 
-        relevant_retrieved = []
+        relevant_flags = [is_relevant(doc, expected) for doc in retrieved_docs]
+        relevant_count = sum(relevant_flags)
 
-        for doc in retrieved_docs:
-            doc_disease = doc.metadata.get("disease", "").lower()
-            doc_content = doc.page_content.lower()
-
-            if any(exp in doc_disease or exp in doc_content for exp in expected):
-                relevant_retrieved.append(doc)
-
-        precision = len(relevant_retrieved) / len(retrieved_docs) if retrieved_docs else 0
-        precision_scores.append(precision)
-
-        hit = len(relevant_retrieved) > 0
-        if hit:
-            hits += 1
+        precision = relevant_count / len(retrieved_docs) if retrieved_docs else 0
+        hit = relevant_count > 0
+        recall = 1.0 if hit else 0.0
 
         mrr = 0
-        for rank, doc in enumerate(retrieved_docs, start=1):
-            doc_disease = doc.metadata.get("disease", "").lower()
-            doc_content = doc.page_content.lower()
-
-            if any(exp in doc_disease or exp in doc_content for exp in expected):
+        for rank, is_rel in enumerate(relevant_flags, start=1):
+            if is_rel:
                 mrr = 1 / rank
                 break
 
+        if hit:
+            hits += 1
+
+        precision_scores.append(precision)
+        recall_scores.append(recall)
         mrr_scores.append(mrr)
 
-        print(f"[{i+1}/{len(test_set)}] Query: {query[:55]}...")
+        print(f"[{i}/{len(test_set)}] Query: {query[:55]}...")
         print(f"  Beklenen: {expected[0]}")
-        print(f"  Precision@5: {precision:.2f} | MRR: {mrr:.2f} | Hit: {'✅' if hit else '❌'}")
+        print(f"  Precision@{FINAL_K}: {precision:.2f} | Recall@{FINAL_K}: {recall:.2f} | MRR: {mrr:.2f} | Hit: {'✅' if hit else '❌'}")
         print()
 
     total = len(test_set)
 
     print("=" * 50)
     print(f"TOPLAM TEST: {total}")
-    print(f"Recall@5 / Hit Rate: {hits / total:.2%}  ({hits}/{total})")
-    print(f"Precision@5:         {sum(precision_scores) / total:.2%}")
-    print(f"MRR:                 {sum(mrr_scores) / total:.3f}")
+    print(f"Recall@{FINAL_K} / Hit Rate: {sum(recall_scores) / total:.2%}  ({hits}/{total})")
+    print(f"Precision@{FINAL_K}:         {sum(precision_scores) / total:.2%}")
+    print(f"MRR:                         {sum(mrr_scores) / total:.3f}")
     print("=" * 50)
 
 
