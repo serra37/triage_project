@@ -54,7 +54,7 @@ def get_bm25_client():
 def rrf_score(rank, k=60):
     return 1 / (k + rank)
 
-def hybrid_search_with_rrf(query: str, k: int = 10):
+def hybrid_search_with_rrf(query: str, k: int = 20):
     """Combines Dense (Chroma) and Sparse (BM25) search results using RRF."""
     db = get_chroma_client()
     bm25, bm25_docs = get_bm25_client()
@@ -99,7 +99,7 @@ def hybrid_search_with_rrf(query: str, k: int = 10):
     
     return top_10_docs
 
-def rerank_documents(query: str, docs: list, top_k: int = 3):
+def rerank_documents(query: str, docs: list, top_k: int = 5):
     """Reranks a list of documents against the query using Cohere."""
     if not docs:
         return []

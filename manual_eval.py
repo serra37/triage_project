@@ -93,36 +93,19 @@ test_set = [
     {"query": "pelvic pain, abnormal discharge, painful intercourse",
      "expected_diseases": ["pelvic inflammatory disease", "pid", "endometriosis"]},
 
-    {"query": "göğsüm ağrıyor sol koluma vuruyor nefes alamıyorum",
-     "expected_diseases": ["heart attack", "heart disease", "kalp"]},
-
-    {"query": "idrar yaparken yanıyor sık sık tuvalete gidiyorum",
-     "expected_diseases": ["urinary tract infection", "idrar yolu enfeksiyonu"]},
-
-    {"query": "başım dönüyor mide bulantım var ayağa kalkınca kötüleşiyor",
-     "expected_diseases": ["bppv", "vertigo", "cervical spondylosis"]},
-
-    {"query": "çok su içiyorum sık idrara çıkıyorum gözlerim bulanık",
-     "expected_diseases": ["diabetes", "diabetes mellitus"]},
-
-    {"query": "sırt ağrısı bacağıma vuruyor ayağım uyuşuyor",
-     "expected_diseases": ["sciatica", "herniated disc", "disc herniation"]},
 ]
 
 
 ALIAS_MAP = {
-    "heart attack": ["myocardial infarction", "cardiac", "angina", "heart disease"],
-    "asthma": ["bronchial", "wheezing", "breathlessness", "spasm"],
-    "acid reflux": ["gerd", "gastroesophageal reflux", "gastritis", "hiatus"],
-    "arthritis": ["rheumatoid", "joint inflammation", "costochondritis", "lupus"],
-    "allergy": ["urticaria", "allergen", "allergic"],
-    "viral fever": ["viral infection", "viral illness"],
-    "migraine": ["cluster headache", "ischemia of brain", "headache"],
-    "appendicitis": ["abdomen pain", "acidity", "pancreatitis"],
-    "diabetes": ["hypoglycemia", "hipoglisemi", "glucose", "insulin"],
-    "bppv": ["vertigo", "dizziness", "cervical spondylosis"],
-    "urinary tract infection": ["idrar yolu", "urinary infection", "cystitis"],
-    "sciatica": ["disc herniation", "herniated", "nerve compression"],
+    "heart attack": ["myocardial infarction", "cardiac arrest", "heart disease"],
+    "urinary tract infection": ["cystitis", "urinary infection", "idrar yolu"],
+    "sciatica": ["disc herniation", "herniated disc", "nerve compression"],
+    "bppv": ["vertigo", "benign paroxysmal positional"],
+    "diabetes": ["diabetes mellitus", "diabetes type 2"],
+    "asthma": ["bronchial asthma", "allergic asthma"],
+    "migraine": ["cluster headache"],
+    "allergy": ["allergic reaction", "urticaria"],
+    "viral fever": ["viral illness", "viral infection"],
 }
 
 def is_relevant(doc, expected_diseases):

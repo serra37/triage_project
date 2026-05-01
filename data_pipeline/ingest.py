@@ -41,7 +41,7 @@ def chunk_with_llm(text, source, base_id):
                                    [result.get("symptoms"), result.get("causes"), result.get("treatment")]):
             if content_text and content_text.strip():
                 docs.append(Document(
-                    page_content=content_text.strip(),
+                    page_content=f"Disease: {disease if disease else 'unknown'}\nAspect: {aspect}\nContent: {content_text.strip()}",
                     metadata={
                         "source": source,
                         "aspect": aspect,
@@ -53,7 +53,7 @@ def chunk_with_llm(text, source, base_id):
         print(f"JSON Parse Hatası Ingestion'da: {e}")
         # Hata durumunda fallback olarak tek chunk ekle
         docs.append(Document(
-            page_content=text,
+            page_content=f"Disease: unknown\nAspect: general\nContent: {text}",
             metadata={"source": source, "aspect": "general", "disease": "unknown", "doc_id": f"{base_id}_general"}
         ))
     
