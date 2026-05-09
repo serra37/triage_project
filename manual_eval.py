@@ -97,8 +97,7 @@ test_set = [
 
 
 ALIAS_MAP = {
-    "heart attack": ["myocardial infarction", "cardiac arrest", "heart disease"],
-    "urinary tract infection": ["cystitis", "urinary infection", "idrar yolu"],
+    "heart attack": ["myocardial infarction", "cardiac arrest", "heart disease", "cardiac disease", "arrhythmia"],    "urinary tract infection": ["cystitis", "urinary infection", "idrar yolu"],
     "sciatica": ["disc herniation", "herniated disc", "nerve compression"],
     "bppv": ["vertigo", "benign paroxysmal positional"],
     "diabetes": ["diabetes mellitus", "diabetes type 2"],
@@ -135,6 +134,23 @@ def evaluate(test_set):
 
         retrieved_docs = search_and_rerank(query, k=K, final_k=FINAL_K)
         time.sleep(7)
+        print("  Gelen chunk'lar:")
+
+        for j, doc in enumerate(retrieved_docs, start=1):
+            disease = doc.metadata.get("disease", "unknown")
+            aspect = doc.metadata.get("aspect", "unknown")
+
+            content = doc.page_content
+
+            if "Content:" in content:
+                content = content.split("Content:", 1)[1].strip()
+
+            content = content.replace("\n", " ")
+
+            print(f"    [{j}]")
+            print(f"      Disease : {disease}")
+            print(f"      Aspect  : {aspect}")
+            print(f"      Content : {content[:120]}")
 
         relevant_flags = [is_relevant(doc, expected) for doc in retrieved_docs]
         relevant_count = sum(relevant_flags)

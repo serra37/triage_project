@@ -41,8 +41,9 @@ def get_bm25_client():
         for i in range(len(all_data['ids'])):
             text = all_data['documents'][i]
             metadata = all_data['metadatas'][i]
-            _bm25_docs.append(Document(page_content=text, metadata=metadata))
-            tokenized_corpus.append(text.lower().split())
+            if metadata.get("disease", "") != "unknown":
+                _bm25_docs.append(Document(page_content=text, metadata=metadata))
+                tokenized_corpus.append(text.lower().split())
         
         if tokenized_corpus:
             _bm25_instance = BM25Okapi(tokenized_corpus)
@@ -63,7 +64,11 @@ def hybrid_search_with_rrf(query: str, k: int = 20):
         return []
 
     # 1. Dense Search (BGE-M3)
-    dense_results = db.similarity_search(query, k=k)
+    dense_results = db.similarity_search(
+        query,
+        k=k,
+        filter={"disease": {"$ne": "unknown"}}
+    )
     
     # 2. Sparse Search (BM25)
     tokenized_query = query.lower().split()
@@ -95,8 +100,18 @@ def hybrid_search_with_rrf(query: str, k: int = 20):
         
     # Sort docs by combined RRF score
     sorted_docs = sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)
-    top_10_docs = [doc_map[key] for key, score in sorted_docs[:k]]
     
+    seen_contents = set()
+    top_10_docs = []
+    for key, score in sorted_docs:
+        doc = doc_map[key]
+        content_key = doc.page_content[:150]
+        if content_key not in seen_contents:
+            seen_contents.add(content_key)
+            top_10_docs.append(doc)
+        if len(top_10_docs) == k:
+            break
+            
     return top_10_docs
 
 def rerank_documents(query: str, docs: list, top_k: int = 5):
