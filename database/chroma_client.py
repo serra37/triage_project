@@ -1,12 +1,15 @@
 import os
+from dotenv import load_dotenv
 import numpy as np
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
 from rank_bm25 import BM25Okapi
 import cohere
+load_dotenv()
 
-co = cohere.Client(os.getenv("COHERE_API_KEY"))
+cohere_api_key = os.getenv("CO_API_KEY") or os.getenv("COHERE_API_KEY")
+co = cohere.Client(cohere_api_key)
 
 CHROMA_PATH = "chroma_db"
 COLLECTION_NAME = "medical_triage"
