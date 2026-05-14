@@ -101,6 +101,11 @@ def clinical_node(state: TriageState):
     Kesin bir teşhis koymaktan kaçın, ancak mevcut belirtilerin hangi tıbbi durumlara işaret edebileceğini açıkla.
     Bu bilgilendirmenin MAKSADI hastayı doğru yönlendirmektir, bu yüzden bilgilendirmenin sonucunda hastaya ne yapması gerektiğini açıkça belirt.
     (Örn: "Durumunuz acil servislik görünüyor, lütfen hemen başvurun", "Yakın zamanda bir Dahiliye doktorundan randevu alabilirsiniz", "Bu belirtiler evde istirahatle geçebilir" vb.)
+    
+    Yanıtını oluştururken şu kurallara uy:
+    - Hastanın belirttiği spesifik semptomlara ("sol kola yayılan ağrınız", "nefes alırken hissettiğiniz göğüs ağrısı" gibi) yanıtta doğrudan atıfta bulun.
+    - Genel hastalık bilgisi vermek yerine hastanın kendi şikayetini merkeze al.
+    - Hastaya hitap ederken "sizin belirttiğiniz...", "yaşadığınız... göz önüne alındığında..." gibi ifadeler kullan.
     """)
     
     user_prompt = f"""
