@@ -13,35 +13,62 @@ def get_llm():
 #yönetici agent
 def supervisor_node(state: TriageState):
     """Sistemin akışını yönetir ve sıradaki düğümü belirler."""
+
+    # Netlestirilmis mi?
     if not state.get("is_clarified", False):
+        # Soru sorulmussa kullanicidan cevap bekle
         if state.get("clarification_question"):
             return {"next_node": "end"}
+        # Soru sorulmamissa intent'e git
         return {"next_node": "intent"}
+
+    # Netlestirildiyse RAG'a git
     if not state.get("medical_context"):
         return {"next_node": "rag"}
+
+    # RAG tamsa clinical'a git
     if not state.get("final_decision"):
         return {"next_node": "clinical"}
+
+    # Her sey tamsa bitir
     return {"next_node": "end"}
 
 def intent_node(state: TriageState):
     """Kullanıcının şikayetini analiz edip eksiği var mı diye bakar. Varsa soru üretir."""
     complaint = state.get("patient_complaint", "")      #kullanıcnın şikayetini çeker
     history = state.get("chat_history", [])     #diyalogları liste olarak tutar
-    
+    user_response_count = max(
+        sum(1 for msg in history if getattr(msg, "type", "") == "human") - 1,
+        0
+    )
+
     # Sohbet geçmişini formata dönüştür
-    history_str = "\n".join([f"{msg.type}: {msg.content}" for msg in history[-5:]]) # Son 5 mesajı modele verecek
-    
+    history_str = "\n".join([f"{msg.type}: {msg.content}" for msg in history])
+
     sys_msg = SystemMessage(content="""
     Sen insanların hastaneye veya acil servise gitmeden ÖNCE danıştıkları uzman bir yapay zeka sağlık chatbotusun.
     Görevin hastanın şikayetini dinleyip, durumları hakkında doğru bilgilendirme ve yönlendirme yapabilmek için eksik kalan bilgileri (ne zaman başladı, şiddeti nedir, kronik hastalık var mı vb.) sormaktır.
-    Bilgi yeterliliğine ulaşana kadar hastaya teşhis söyleme, sadece empati kurarak sorunu derinleştiren tek bir soru sor.
     Eğer hastanın verdiği şikayetler durumu değerlendirmek için yeterliyse JSON formatında 'is_clarified': true döndür ve hastanın belirttiği tüm semptomları İngilizce tıp terimleri veya anahtar kelimeler şeklinde bir liste olarak 'extracted_symptoms' anahtarında döndür (Örn: ["chest pain", "shortness of breath", "nausea"]).
-    
+
+    Strict rules:
+    1. If the chat_history contains ANY user response after the initial complaint, immediately return is_clarified: true.
+    2. Never ask the same question twice.
+    3. Only ask ONE clarifying question when the very first message has insufficient info.
+    4. If the user has answered at least one follow-up question, always return is_clarified: true.
+
     Eğer ek bir soru sorman gerekiyorsa JSON formatında 'is_clarified': false ve 'question': "Soracağın netleştirici soru" şeklinde döndür.
     Sadece ve sadece JSON formatında yanıt ver, başka bir metin içerme.
     """)
     
-    user_msg_content = f"Şikayet: {complaint}\nSohbet Geçmişi: {history_str}"   #o an ki konuşmaları tek bir metin haline getirerk modele verecek
+    user_msg_content = f"""
+Ana Şikayet: {complaint}
+
+Konuşma Geçmişi ({user_response_count} kullanıcı cevabı):
+{history_str}
+
+KURAL: Eğer kullanıcı en az 1 cevap verdiyse (user_response_count >= 1),
+kesinlikle is_clarified: true döndür. Aynı soruyu tekrar sorma.
+"""
     human_msg = HumanMessage(content=user_msg_content)
     
 
